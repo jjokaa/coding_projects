@@ -1,0 +1,14 @@
+{
+    "manifest_version": 3,
+    "name": "Preenchimento Automático Score",
+    "version": "2.2.13",
+    "description": "Extrai dados da ficha de jogo e preenche o jogo automaticamente.",
+    "action": {
+      "default_popup": "popup.html",
+      "default_icon": "icon.png"
+    },
+    "permissions": [
+      "activeTab",
+      "scripting"
+    ]
+  }
