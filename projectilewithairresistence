@@ -1,0 +1,145 @@
+import numpy as np
+from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
+
+#Most of the code is adapted from:
+#https://scipython.com/books/book2/chapter-8-scipy/examples/a-projectile-with-air-resistance/
+
+#Some parts were modified to include height of lauch and to plot experimental data.
+
+
+# Drag coefficient, projectile radius (m), area (m2) and mass (kg).
+c = 0.8
+r = 0.02546
+A = np.pi * r**2
+m = 0.01033
+# Air density (kg.m-3), acceleration due to gravity (m.s-2).
+rho_air = 1.28
+g = 9.81
+# For convenience, define  this constant.
+k = 0.5 * c * rho_air * A
+
+# Initial speed and launch angle (from the horizontal).
+v0 = 3.22
+phi0 = np.radians(60)
+
+
+def deriv(t, u):
+    x, xdot, z, zdot = u
+    speed = np.hypot(xdot, zdot)
+    xdotdot = -k / m * speed * xdot
+    zdotdot = -k / m * speed * zdot - g
+    return xdot, xdotdot, zdot, zdotdot
+
+
+# Initial conditions: x0, v0_x, z0, v0_z.
+z0 = 0.27  # inicial height (m)
+u0 = 0.0, v0 * np.cos(phi0), z0, v0 * np.sin(phi0)
+# Integrate up to tf unless we hit the target sooner.
+t0, tf = 0, 50
+
+
+def hit_target(t, u):
+    # We've hit the target if the z-coordinate is 0.
+    return u[2]
+
+
+# Stop the integration when we hit the target.
+hit_target.terminal = True
+# We must be moving downwards (don't stop before we begin moving upwards!)
+hit_target.direction = -1
+
+
+def max_height(t, u):
+    # The maximum height is obtained when the z-velocity is zero.
+    return u[3]
+
+
+soln = solve_ivp(
+    deriv, (t0, tf), u0, dense_output=True, events=(hit_target, max_height)
+)
+print(soln)
+print(f"Time to target = {soln.t_events[0][0]:.2f} s")
+print(f"Time to highest point = {soln.t_events[1][0]:.2f} s")
+
+# A fine grid of time points from 0 until impact time.
+t = np.linspace(0, soln.t_events[0][0], 100)
+
+# Retrieve the solution for the time grid and plot the trajectory.
+sol = soln.sol(t)
+x, z = sol[0], sol[2]
+print(f"Range to target, xmax = {x[-1]:.2f} m")
+print(f"Maximum height, zmax = {max(z):.2f} m")
+
+
+# ----------------------------------------------------------
+# Experimental data (in cm) copied from a table in a lab report.
+#Distance x (cm)    Height y (cm)
+data_text = """
+0	26,700
+11,4	42,7
+11,4	42,7
+11,4	42,7
+11,4	42,7
+20,0	50,6
+20,0	50,6
+20,0	50,6
+20,0	50,4
+30,0	55,8
+30,0	56,0
+30,0	56,0
+30,0	56,0
+40,0	57,5
+40,0	57,75
+40,0	57,75
+40,0	57,7
+50,0	55,7
+50,0	55,7
+50,0	56,0
+50,0	56,0
+60,0	49,8
+60,0	49,6
+60,0	49,4
+60,0	49,1
+70,0	41,6
+70,0	40,8
+70,0	40,6
+70,0	40,1
+80,0	28,2
+80,0	27,0
+80,0	26,3
+80,0	25,7
+90,0	11,7
+90,0	10,9
+90,0	10,7
+90,0	9,9
+93,0	6,0
+93,0	5,8
+93,0	5,2
+93,0	2,9
+"""
+
+import re
+xs, ys = [], []
+for line in data_text.strip().splitlines():
+    line = line.strip().replace(",", ".")
+    parts = re.split(r'[\t,; ]+', line)
+    if len(parts) >= 2:
+        try:
+            x_cm = float(parts[0])
+            y_cm = float(parts[1])
+            xs.append(x_cm / 100)  # cm → m
+            ys.append(y_cm / 100)  # cm → m
+        except ValueError:
+            pass
+
+xs = np.array(xs)
+ys = np.array(ys)
+
+plt.plot(x, z, label="Simulação", linewidth=2)
+plt.scatter(xs, ys, color="red", label="Dados experimentais", zorder=3)
+plt.xlabel("x / m")
+plt.ylabel("y/ m")
+plt.legend()
+plt.grid(True)
+plt.show()
